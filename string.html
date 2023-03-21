@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image to ASCII Converter</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      align-items: center;
+    }
+    #preview {
+      max-width: 300px;
+      max-height: 300px;
+    }
+    #asciiOutput {
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 4px;
+      line-height: 5px;
+      background-color: rgba(0, 0, 0, 0);
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <h1>Image to ASCII Converter</h1>
+  <input type="file" id="inputImage" accept="image/*">
+  <img id="preview" src="" alt="Image preview" style="display:none;">
+  <div id="asciiOutput"></div>
+  <button id="downloadButton" style="display:none;">Download as PNG</button>
+  
+  <script>
+    const inputImage = document.getElementById('inputImage');
+    const preview = document.getElementById('preview');
+    const asciiOutput = document.getElementById('asciiOutput');
+    const downloadButton = document.getElementById('downloadButton');
+
+    inputImage.addEventListener('change', function (event) {
+      const file = event.target.files[0];
+      if (file && file.type.match('image.*')) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+          convertImageToASCII(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        alert('Invalid file format. Please select an image file.');
+      }
+    });
+
+    function convertImageToASCII(imageData) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.src = imageData;
+      img.onload = function () {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const grayscaleImage = getGrayscaleImage(canvas, ctx);
+        const asciiString = createASCIIString(grayscaleImage);
+        asciiOutput.textContent = asciiString;
+        downloadButton.style.display = 'block';
+      };
+    }
+
+    function getGrayscaleImage(canvas, ctx) {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imageData.data;
+
+      for (let i = 0; i < pixels.length; i += 4) {
+        const avg = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+        pixels[i] = pixels[i + 1] = pixels[i + 2] = avg;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      return canvas;
+    }
+
+    function createASCIIString(grayscaleImage) {
+      const asciiCharacters = '@%#*+=-:. ';
+      const scaleFactor = 4;
+      const width = Math.floor(grayscaleImage.width / scaleFactor);
+      const height = Math.floor(grayscaleImage.height / scaleFactor);
+      const ctx = grayscaleImage.getContext('2d');
+      const imageData = ctx.getImageData(0, 0, grayscaleImage.width, grayscaleImage.height).data;
+      let asciiString = '';
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const index = (Math.floor(y * scaleFactor) * grayscaleImage.width + Math.floor(x * scaleFactor)) * 4;
+          const grayValue = imageData[index];
+          const characterIndex = Math.floor(grayValue / 255 * (asciiCharacters.length - 1));
+          asciiString += asciiCharacters[characterIndex];
+        }
+        asciiString += '\n';
+      }
+
+      return asciiString;
+    }
+
+    downloadButton.addEventListener('click', function () {
+      html2canvas(asciiOutput, {
+        backgroundColor: "#fff"
+      }).then(function(canvas) {
+        const downloadLink = document.createElement('a');
+        downloadLink.href = canvas.toDataURL('image/png');
+        downloadLink.download = 'ascii_image.png';
+        downloadLink.click();
+      });
+    });
+  </script>
+</body>
+</html>
+
